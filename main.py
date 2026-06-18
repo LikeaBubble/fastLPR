@@ -1,17 +1,18 @@
-import time
 import cv2
+import time
 from frame_reader import FrameReader
+from utils import motion
 # from detector import Detector
 # from recognizer import Recognizer
 
-STAND_BY = True
+OPERATION = True
 def pipeline():
-    # ۱. مقداردهی اولیه ماژول‌ها
-    # در این مرحله مدل‌های سنگین بارگذاری می‌شوند
     print("Loading models...")
     reader = FrameReader(source=0).start()
+    motion_trigger = motion.MotionDetector(delay=5)
     # detector = Detector(model_path="yolo.onnx")
     # recognizer = Recognizer(model_path="lprnet.onnx")
+    
     
     print("Pipeline is running in Standby mode.")
     
@@ -20,15 +21,19 @@ def pipeline():
         if not ret:
             break
         
-        cv2.imshow('f',frame)
+        OPERATION = motion_trigger.delayed_check(frame)
         
-        if cv2.waitKey(1)==ord('q'):
+        cv2.imshow('f',frame)
+        if cv2.waitKey(1) == ord('q'):
             break
-        # ۳. بخش استندبای / مانیتورینگ حرکت (اختیاری اما بهینه)
-        # movement_detected = check_motion(frame)
-        # if not movement_detected:
-        #     time.sleep(0.1) # مصرف CPU را به شدت کاهش می‌دهد
-        #     continue
+        
+        if not OPERATION:
+            print('Standby mode')
+            time.sleep(0.01)
+            continue
+        print('Operating')
+            
+        
 
         # ۴. ارسال فریم به دتکتور و ترکر
         # detections, plate_batch = detector.process(frame)
@@ -38,7 +43,6 @@ def pipeline():
         #     final_plate_text = recognizer.vote(plate_batch)
         #     save_to_sqlite(final_plate_text)
         #     send_to_fastapi_client(final_plate_text)
-            
         time.sleep(0.01)
 
     reader.stop()
