@@ -92,7 +92,6 @@ class PlateBatcher:
                 (aspect_ratio_diff * aspect_w)
             )
             
-            print(score)
             scored_crops.append((score, crop))
         
         if not scored_crops:

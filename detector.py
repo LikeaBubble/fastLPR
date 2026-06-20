@@ -9,7 +9,8 @@ class Detector:
         model_path = './weights/det_half.onnx'
         self.conf_threshold = conf_threshold
         self.input_size = input_size
-
+        self.pad_info = (0, 0, 1.0)
+        
         providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
         self.session = ort.InferenceSession(model_path, providers=providers)
 
@@ -37,50 +38,51 @@ class Detector:
     
     def letterbox(self, image, target_size):
         """
-        Resize and pad the image while maintaining aspect ratio.
-        This is the standard preprocessing for YOLO models.
+        Fast C++ backed letterboxing using cv2.copyMakeBorder.
         """
         h, w = image.shape[:2]
+        
         # Calculate scaling ratio
         scale = min(target_size / h, target_size / w)
         new_w, new_h = int(w * scale), int(h * scale)
 
-        # Resize image
-        resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        # 1. Fast Resize
+        if scale != 1.0:
+            resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        else:
+            resized = image
 
-        # Create a blank canvas of target size
-        canvas = np.full((target_size, target_size, 3), 114, dtype=np.uint8)
+        # 2. Calculate padding offsets
+        top = (target_size - new_h) // 2
+        bottom = target_size - new_h - top
+        left = (target_size - new_w) // 2
+        right = target_size - new_w - left
 
-        # Calculate padding offsets to center the image
-        dw = (target_size - new_w) // 2
-        dh = (target_size - new_h) // 2
+        # 3. Fast Padding using C++ backend (replaces np.full and array slicing)
+        padded_img = cv2.copyMakeBorder(
+            resized, 
+            top, bottom, left, right, 
+            cv2.BORDER_CONSTANT, 
+            value=(114, 114, 114)
+        )
+        self.pad_info = (left, top, scale)
 
-        # Place the resized image onto the canvas
-        canvas[dh:dh + new_h, dw:dw + new_w] = resized
-
-        # Store padding and scale info for later use (to map boxes back to original image)
-        self.pad_info = (dw, dh, scale)
-
-        return canvas
+        return padded_img
     
     def preprocess(self, image):
         """
         Preprocess the image for YOLO26 inference.
         """
-        # Apply letterboxing
         processed_img = self.letterbox(image, self.input_size)
-
-        # Convert BGR to RGB (YOLO models expect RGB)
-        processed_img = cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB)
-
-        # Normalize pixel values to [0, 1]
-        processed_img = processed_img.astype(np.float32) / 255.0
-
-        # Change data layout from HWC to CHW
-        processed_img = np.transpose(processed_img, (2, 0, 1))
-
-        # Add batch dimension (1, C, H, W)
-        input_tensor = np.expand_dims(processed_img, axis=0)
+        
+        input_tensor = cv2.dnn.blobFromImage(
+            image=processed_img,
+            scalefactor=1/255.0,            # Normalize pixels to [0, 1]
+            size=(self.input_size, self.input_size), 
+            mean=(0, 0, 0),                 # No mean subtraction required for YOLO
+            swapRB=True,                    # Convert BGR to RGB instantly
+            crop=False                      # We already letterboxed, no cropping needed
+        )
 
         return input_tensor
     

@@ -22,7 +22,7 @@ class Recognizer:
         logits = raw_outputs[0]  # (Batch_Size, Num_Classes, Time_Steps)
         out = self.postprocess(logits)
         most, count = Counter(out).most_common(1)[0]
-        return f'{most} - {count} times'
+        return most,f'{(count/len(crops))*100}%'
     
     def postprocess(self,logits):
         decoded_predictions = []
@@ -49,8 +49,8 @@ class Recognizer:
                 compressed_plate.append(self.chars[c])
                 pre_c = c
                 
-            decoded_predictions.append(''.join(compressed_plate))
-
+            decoded_predictions.append(' '.join(compressed_plate))
+            
         return decoded_predictions
     
     

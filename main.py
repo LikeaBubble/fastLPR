@@ -6,8 +6,7 @@ from detector import Detector
 import supervision as sv 
 from utils import plate_batcher as pb
 from reconizer import Recognizer
-# from recognizer import Recognizer
-
+from database import GateDatabase
 
 
 
@@ -19,7 +18,8 @@ def pipeline():
     
     
     print("Loading models...")
-    reader = FrameReader(source='./samples/1.mp4').start()
+    db = GateDatabase()
+    reader = FrameReader(source=0).start()
     motion_trigger = motion.MotionDetector(delay=5)
     det = Detector()
     recognizer = Recognizer()
@@ -53,10 +53,12 @@ def pipeline():
                 tracked_detections = tracker.update_with_detections(sv_detections)
                 crops = batcher.update(frame,tracked_detections)
                 if crops:
-                    print(recognizer.predict(crops))
-                    print('*'*10)
-                    for i,crop in enumerate(crops):
-                        cv2.imwrite(f'f{i}.jpg',crop)
+                    final_plate,plate_score = recognizer.predict(crops)
+                    db.log_vehicle(
+                        plate=final_plate, 
+                        confidence=plate_score, 
+                        croped_img=crops[0]
+                    )
                     
         nd = time.time()
         print((nd-st)*1000)
@@ -67,7 +69,7 @@ def pipeline():
         #     save_to_sqlite(final_plate_text)
         #     send_to_fastapi_client(final_plate_text)
         time.sleep(0.01)
-
+    print(db.get_todays_logs())
     reader.stop()
 
 if __name__ == "__main__":
