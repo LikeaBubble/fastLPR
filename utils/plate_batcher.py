@@ -60,7 +60,7 @@ class PlateBatcher:
         
         area_w = 0.1
         center_w = 0.2
-        blur_w = 200
+        blur_w = 250
         aspect_w = 170
         
         for plate in tracked_plates:
