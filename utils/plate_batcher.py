@@ -3,6 +3,7 @@ import cv2
 class PlateBatcher:
     def __init__(self, stack_num=10, selected_num=5):
         self.stacked = {}
+        self.stacked_xyxy = {}
         self.processed_ids = set()
         self.stack_num = stack_num
         self.selected_num = selected_num
@@ -27,6 +28,7 @@ class PlateBatcher:
                 
             if tracker_id not in self.stacked:
                 self.stacked[tracker_id] = []
+                self.stacked_xyxy[tracker_id] = [] 
                 
 
             x1, y1, x2, y2 = xyxy.astype(int)
@@ -39,14 +41,40 @@ class PlateBatcher:
                 continue
                 
             self.stacked[tracker_id].append([xyxy, confidence, crop])
+            self.stacked_xyxy[tracker_id].append(xyxy)
             
             if len(self.stacked[tracker_id]) == self.stack_num:
+                is_coming = self.get_entry_status(self.stacked_xyxy[tracker_id])
                 best_crops = self.get_best_crops(self.stacked[tracker_id], frame.shape)
                 self.processed_ids.add(tracker_id)
                 del self.stacked[tracker_id]
-                return best_crops
+                del self.stacked_xyxy[tracker_id]
+                return best_crops,is_coming
                 
         return None 
+    
+    def get_entry_status(self,tracked_plate, line_y=400):
+        if len(tracked_plate) < 2:
+            return None
+        print(tracked_plate)
+        
+        first_box = tracked_plate[0]
+        y_start = (first_box[1] + first_box[3]) / 2
+        
+        last_box = tracked_plate[-1]
+        y_end = (last_box[1] + last_box[3]) / 2
+        
+        if y_start < line_y and y_end > line_y:
+            return True
+            
+        elif y_start > line_y and y_end < line_y:
+            return False
+            
+        else:
+            if y_end > y_start:
+                return True
+            else:
+                return False
 
     def get_best_crops(self, tracked_plates, img_shape):
         if not tracked_plates:

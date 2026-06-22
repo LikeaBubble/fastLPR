@@ -19,7 +19,7 @@ class Recognizer:
     def predict(self,crops):
         input_data = self.preprocess(crops)
         raw_outputs = self.lpr_session.run(None, {self.input_name: input_data})
-        logits = raw_outputs[0]  # (Batch_Size, Num_Classes, Time_Steps)
+        logits = raw_outputs[0]
         out = self.postprocess(logits)
         most, count = Counter(out).most_common(1)[0]
         return most,f'{(count/len(crops))*100}%'
