@@ -56,7 +56,6 @@ class PlateBatcher:
     def get_entry_status(self,tracked_plate, line_y=400):
         if len(tracked_plate) < 2:
             return None
-        print(tracked_plate)
         
         first_box = tracked_plate[0]
         y_start = (first_box[1] + first_box[3]) / 2

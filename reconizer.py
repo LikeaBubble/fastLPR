@@ -1,3 +1,4 @@
+import re
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -15,6 +16,11 @@ class Recognizer:
         'SS', 'DP', 'PT', 'ML',
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
         '-']
+        self.patterns = [
+            r'^\d{2}[A-Za-z]{1,4}\d{5}$',
+            r'^PT\d{4}$',
+            r'^\d{2}[A-Za-z]{1,4}\d{3,5}$'
+        ]
         
     def predict(self,crops):
         input_data = self.preprocess(crops)
@@ -51,8 +57,19 @@ class Recognizer:
                 
             decoded_predictions.append(' '.join(compressed_plate))
             
-        return decoded_predictions
+        correct_formatted = self.check_format(decoded_predictions)
+        
+        return correct_formatted if not [] else decoded_predictions
     
+    def check_format(self,preds):
+        correct = []
+        for pred in preds:
+            txt = ''.join(pred.split(' '))
+            for p in self.patterns:
+                if re.match(p,txt):
+                    correct.append(pred)
+        
+        return correct
     
     def preprocess(self,crops):
         
