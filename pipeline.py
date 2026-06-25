@@ -1,5 +1,6 @@
 import threading
 import time
+from utils.visualizer import Visualizer
 import supervision as sv
 from datetime import datetime
 from utils import storage
@@ -15,8 +16,11 @@ class Pipeline:
         self.thread = None
         self.stop_event = threading.Event()
         self.is_running = False
-        self.authorizer = False
-        self.video_source = './data/samples/6.mp4'
+        self.authorizer = True
+        self.video_source = './data/samples/2.mp4'
+        
+        self.current_frame = None
+        self.frame_lock = threading.Lock()
 
     def _loop(self):
         db = GateDatabase()
@@ -26,6 +30,7 @@ class Pipeline:
         recognizer = Recognizer()
         tracker = sv.ByteTrack(track_activation_threshold=0.25, lost_track_buffer=30)
         batcher = pb.PlateBatcher(stack_num=10, selected_num=5)
+        vz = Visualizer()
         
         frame_idx = 0
         SKIP_FRAMES = 7
@@ -46,6 +51,8 @@ class Pipeline:
                 sv_detections = det.predict(frame)
                 if sv_detections:
                     tracked_detections = tracker.update_with_detections(sv_detections)
+                    with self.frame_lock:
+                        self.current_frame = vz.plot(frame,tracked_detections)
                     crops_status = batcher.update(frame, tracked_detections)
                     
                     if crops_status:
@@ -59,6 +66,9 @@ class Pipeline:
                             cropped_img=crops[0],
                             is_entering=entering
                         )
+                else:
+                    with self.frame_lock:
+                        self.current_frame = frame
             time.sleep(0.01)
 
         reader.stop()
@@ -145,3 +155,4 @@ class Pipeline:
             self.thread.join(timeout=3)
         self.is_running = False
         return {"status": "success", "message": "Pipeline stopped"}
+    

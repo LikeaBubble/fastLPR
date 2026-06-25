@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from data.database import GateDatabase
 import asyncio
@@ -46,6 +47,9 @@ async def stop_camera():
 async def get_whitelist():
     loop = asyncio.get_running_loop()
     db_data = await loop.run_in_executor(None, lambda: GateDatabase().get_whitelist())
+    if not db_data:
+        return {"status": "خطا/گزارش", "message":'خطا در خواندن اطلاعات. ابتدا پلاکی را اضافه کنید'}
+        
     return {"status": "success", "data": db_data}
 
 @app.post("/whitelist/add")
@@ -75,11 +79,56 @@ async def remove_from_whitelist(plate: str):
 
 
 @app.get("/logs/today")
-async def get_recent_logs():
+async def get_today_logs():
     loop = asyncio.get_running_loop()
-    data = await loop.run_in_executor(None, lambda: GateDatabase().get_todays_logs())
+    data = await loop.run_in_executor(None, lambda: GateDatabase().get_today_logs())
+    if not data:
+        return {"status": "خطا", "message":  'هنوز ترددی ثبت نشده است'}
     return {"status": "success", "data": data}
 
+@app.get("/logs")
+async def get_recent_logs():
+    loop = asyncio.get_running_loop()
+    data = await loop.run_in_executor(None, lambda: GateDatabase().get_recent_logs())
+    if not data:
+        return {"status": "خطا", "message":  'هنوز ترددی ثبت نشده است'}
+    return {"status": "success", "data": data}
+
+@app.get("/logs/sessions")
+async def get_whitelist():
+    loop = asyncio.get_running_loop()
+    db_data = await loop.run_in_executor(None, lambda: GateDatabase().get_sessions())
+    if not db_data:
+        return {"status": "Fail", "message": 'تردد فعالی نداریم'}
+    return {"status": "success", "data": db_data}
+
+@app.get("/video_feed")
+def video_feed():
+    return StreamingResponse(
+        video_frame_generator(), 
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+    
+def video_frame_generator():
+    while True:
+        
+        frame = pipeline_manager.current_frame
+        
+        if frame is None:
+            asyncio.sleep(0.1)
+            continue
+            
+        import cv2
+        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        
+        if not ret:
+            continue
+            
+        frame_bytes = buffer.tobytes()
+        
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
