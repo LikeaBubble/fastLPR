@@ -27,7 +27,7 @@ class Visualizer:
         color = self.NEON_GREEN if plate_text else self.DARK_GRAY
         
         length = int((x2 - x1) * 0.15)
-        thickness = 2
+        thickness = 10
         
         cv2.line(out_frame, (x1, y1), (x1 + length, y1), color, thickness)
         cv2.line(out_frame, (x1, y1), (x1, y1 + length), color, thickness)
@@ -56,4 +56,39 @@ class Visualizer:
         text_y = y1 - 5 if y1 - text_h - 10 > 0 else y1 + text_h + 5
         cv2.putText(out_frame, label, (x1 + 5, text_y), self.FONT, font_scale, self.WHITE, font_thickness, cv2.LINE_AA)
 
-        return out_frame
+        return self.draw_trigger_line(out_frame)
+    
+    def draw_trigger_line(self, frame, line_y=800, color=(122, 178, 24), thickness=2, show_text=True):
+        
+        if frame is None:
+            return frame
+
+        height, width = frame.shape[:2]
+        start_point = (0, line_y)
+        end_point = (width, line_y)
+
+        cv2.line(frame, start_point, end_point, color, thickness)
+
+        if show_text:
+            cv2.putText(
+                frame, 
+                "ENTERING / INBOUND", 
+                (20, line_y - 10), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                0.5, 
+                (0, 255, 0),
+                1, 
+                cv2.LINE_AA
+            )
+            cv2.putText(
+                frame, 
+                "EXITING / OUTBOUND", 
+                (20, line_y + 20), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                0.5, 
+                (0, 0, 255),
+                1, 
+                cv2.LINE_AA
+            )
+
+        return frame

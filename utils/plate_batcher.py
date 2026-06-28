@@ -53,7 +53,7 @@ class PlateBatcher:
                 
         return None 
     
-    def get_entry_status(self,tracked_plate, line_y=400):
+    def get_entry_status(self,tracked_plate, line_y=800):
         if len(tracked_plate) < 2:
             return None
         

@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FastLPR | پنل مدیریت تشخیص پلاک</title>
+    <meta name="description" content="پنل مدیریت سیستم تشخیص پلاک خودرو لبه FastLPR" />
+
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: "#0A0E12",
+                        surface: "#12171C",
+                        surface2: "#181F26",
+                        line: "#232B33",
+                        ink: "#E7ECEF",
+                        inkdim: "#93A1AC",
+                        inkmute: "#5C6770",
+                        emerald: { DEFAULT: "#18B27A", soft: "#18B27A" },
+                        danger: "#E1493F",
+                        warning: "#D89B3D",
+                    },
+                    fontFamily: {
+                        sans: ["Vazirmatn", "system-ui", "sans-serif"],
+                        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+                    },
+                    boxShadow: {
+                        panel: "0 1px 0 0 rgba(255,255,255,0.02) inset, 0 8px 24px -12px rgba(0,0,0,0.6)",
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0A0E12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #232B33;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2c3640;
+        }
+
+        body {
+            font-feature-settings: "tnum" 1;
+        }
+
+        .bg-scanlines {
+            background-image:
+                linear-gradient(rgba(24, 178, 122, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(24, 178, 122, 0.05) 1px, transparent 1px);
+            background-size: 22px 22px;
+        }
+
+        .pulse-dot {
+            position: relative;
+        }
+        .pulse-dot::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background: inherit;
+            animation: pulseRing 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulseRing {
+            0% {
+                transform: scale(1);
+                opacity: 0.65;
+            }
+            100% {
+                transform: scale(2.6);
+                opacity: 0;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .pulse-dot::after {
+                animation: none;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.25s ease both;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border-radius: 9999px;
+            border: 2px solid rgba(231, 236, 239, 0.25);
+            border-top-color: #E7ECEF;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Plate chip — styled after an Iranian license plate */
+        .plate-chip {
+            display: inline-flex;
+            align-items: stretch;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1.5px solid #0c0f12;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.35);
+            background: #f3efe3;
+            height: 28px;
+            direction: ltr;
+        }
+        .plate-chip__strip {
+            width: 15px;
+            background: #0e4f97;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+        .plate-chip__flag {
+            width: 9px;
+            height: 6px;
+            border-radius: 1px;
+            background: linear-gradient(to bottom, #239f40 0 33%, #f3efe3 33% 66%, #da0000 66% 100%);
+        }
+        .plate-chip__ir {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 4.5px;
+            font-weight: 700;
+            color: #f3efe3;
+            writing-mode: vertical-rl;
+            letter-spacing: 0.5px;
+        }
+        .plate-chip__text {
+            font-family: "JetBrains Mono", Vazirmatn, monospace;
+            font-weight: 700;
+            font-size: 12.5px;
+            color: #14181c;
+            display: flex;
+            align-items: center;
+            padding: 0 9px;
+            white-space: nowrap;
+        }
+
+        /* Editable counterpart of the plate chip */
+        .plate-input-group {
+            background: #f3efe3;
+            border: 1.5px solid #0c0f12;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.35);
+            border-radius: 6px;
+            height: 38px;
+        }
+        .plate-input-group .plate-chip__strip {
+            width: 18px;
+        }
+        .plate-input-field {
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: "JetBrains Mono", Vazirmatn, monospace;
+            font-weight: 700;
+            font-size: 15px;
+            color: #14181c;
+            text-align: center;
+            padding: 0 4px;
+        }
+        .plate-input-field:focus {
+            background: rgba(24, 178, 122, 0.14);
+        }
+        .plate-input-field::placeholder {
+            color: rgba(20, 24, 28, 0.35);
+        }
+        .plate-input-select {
+            cursor: pointer;
+        }
+        .plate-input-sep {
+            display: flex;
+            align-items: center;
+            color: rgba(20, 24, 28, 0.45);
+            font-weight: 700;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        :focus-visible {
+            outline: 2px solid #18B27A;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* ─── FIX: Details pill & popover ─── */
+        .details-cell {
+            position: relative;
+            /* ensure the popover stays within the table cell's bounds */
+            overflow: visible;
+        }
+
+        .details-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            max-width: 5rem;
+            /* much smaller — was 9rem */
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid #232B33;
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 10px;
+            /* smaller */
+            color: #93A1AC;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: border-color .15s, color .15s;
+            user-select: none;
+        }
+        .details-pill:hover {
+            border-color: #18B27A;
+            color: #E7ECEF;
+        }
+        .details-pill svg {
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .details-popover {
+            position: absolute;
+            z-index: 60;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            right: auto;
+            width: 16rem;
+            /* was 22rem — smaller */
+            max-width: 80vw;
+            background: #181F26;
+            border: 1px solid #232B33;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+            padding: 10px 13px;
+            font-size: 12.5px;
+            color: #E7ECEF;
+            line-height: 1.6;
+            word-break: break-word;
+            white-space: pre-wrap;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateX(-50%) translateY(4px);
+            transition: opacity .15s, transform .15s;
+        }
+
+        .details-cell:hover .details-popover,
+        .details-cell:focus-within .details-popover {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+
+        /* ─── end fix ─── */
+    </style>
+</head>
+
+<body class="bg-base text-ink font-sans antialiased min-h-screen">
+
+    <div class="min-h-screen flex" id="app-shell">
+
+        <!-- Sidebar backdrop (mobile only) -->
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden"></div>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 right-0 z-40 w-72 translate-x-full transition-transform duration-300
+           md:static md:translate-x-0 md:z-auto md:w-64
+           bg-surface border-l border-line flex flex-col">
+            <div class="h-16 flex items-center gap-3 px-5 border-b border-line shrink-0">
+                <span class="plate-chip h-7">
+                    <span class="plate-chip__strip">
+                        <span class="plate-chip__flag"></span>
+                        <span class="plate-chip__ir">IRAN</span>
+                    </span>
+                    <span class="plate-chip__text text-[11px]">LPR</span>
+                </span>
+                <div class="leading-tight">
+                    <p class="font-bold text-ink text-sm">FastLPR</p>
+                    <p class="text-[11px] text-inkmute">سیستم تشخیص پلاک لبه</p>
+                </div>
+                <button id="sidebar-close" class="ms-auto md:hidden text-inkmute hover:text-ink p-1" aria-label="بستن منو">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                </button>
+            </div>
+
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <button data-tab="monitor" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-inkdim hover:text-ink hover:bg-surface2 border-r-2 border-transparent transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                    <span>مانیتورینگ زنده</span>
+                </button>
+                <button data-tab="whitelist" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-inkdim hover:text-ink hover:bg-surface2 border-r-2 border-transparent transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <span>لیست سفید</span>
+                </button>
+                <button data-tab="logs" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-inkdim hover:text-ink hover:bg-surface2 border-r-2 border-transparent transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+                    <span>گزارش تردد</span>
+                </button>
+
+                <!-- Divider -->
+                <div class="h-px bg-line my-3"></div>
+
+                <!-- Video Source inline panel -->
+                <div class="rounded-md border border-line bg-surface2 p-3 space-y-3">
+                    <div class="flex items-center gap-2 text-xs font-semibold text-inkdim">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                        <span>منبع ویدیو</span>
+                    </div>
+
+                    <!-- Source type selector -->
+                    <div class="flex bg-surface border border-line rounded-md p-0.5 text-[11px]">
+                        <button data-src-type="local" class="src-type-btn flex-1 py-1 rounded-[4px] font-medium transition-colors text-inkdim hover:text-ink">دوربین</button>
+                        <button data-src-type="ip" class="src-type-btn flex-1 py-1 rounded-[4px] font-medium transition-colors text-inkdim hover:text-ink">IP</button>
+                        <button data-src-type="file" class="src-type-btn flex-1 py-1 rounded-[4px] font-medium transition-colors text-inkdim hover:text-ink">فایل</button>
+                    </div>
+
+                    <!-- Local camera (index) input -->
+                    <div id="src-input-local" class="src-input-panel space-y-1.5">
+                        <label class="text-[11px] text-inkmute">شماره دوربین</label>
+                        <input id="src-local-value" type="number" min="0" max="9" value="0" placeholder="0" class="w-full bg-surface border border-line focus:border-emerald rounded-md px-3 py-2 text-sm outline-none text-ink placeholder:text-inkmute font-mono" />
+                    </div>
+
+                    <!-- IP camera input -->
+                    <div id="src-input-ip" class="src-input-panel space-y-1.5 hidden">
+                        <label class="text-[11px] text-inkmute">آدرس RTSP / HTTP</label>
+                        <input id="src-ip-value" type="text" placeholder="rtsp://192.168.1.100:554/stream" class="w-full bg-surface border border-line focus:border-emerald rounded-md px-3 py-2 text-sm outline-none text-ink placeholder:text-inkmute font-mono" dir="ltr" />
+                    </div>
+
+                    <!-- File path input -->
+                    <div id="src-input-file" class="src-input-panel space-y-1.5 hidden">
+                        <label class="text-[11px] text-inkmute">مسیر فایل ویدیو</label>
+                        <input id="src-file-value" type="text" placeholder="/videos/sample.mp4" class="w-full bg-surface border border-line focus:border-emerald rounded-md px-3 py-2 text-sm outline-none text-ink placeholder:text-inkmute font-mono" dir="ltr" />
+                    </div>
+
+                    <button id="btn-apply-source" class="w-full flex items-center justify-center gap-2 bg-emerald hover:bg-emerald/85 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-medium rounded-md py-2 transition-colors">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span id="btn-apply-source-label">اعمال منبع</span>
+                    </button>
+
+                    <p id="src-status" class="hidden text-[11px] rounded-md px-2.5 py-1.5 leading-5"></p>
+                </div>
+            </nav>
+
+            <div class="px-5 py-4 border-t border-line text-[11px] text-inkmute">
+                <p>FastLPR Engine &middot; نسخه ۱.۰</p>
+                <p class="font-mono mt-0.5" dir="ltr">api: 127.0.0.1:8000</p>
+            </div>
+        </aside>
+
+        <!-- Main column -->
+        <div class="flex-1 flex flex-col min-w-0">
+
+            <!-- Top bar -->
+            <header class="h-16 shrink-0 border-b border-line bg-surface/70 backdrop-blur flex items-center gap-3 px-4 md:px-6 sticky top-0 z-20">
+                <button id="sidebar-open" class="md:hidden text-inkdim hover:text-ink p-1.5 -mr-1.5" aria-label="باز کردن منو">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <h1 id="page-title" class="font-semibold text-ink text-sm md:text-base">مانیتورینگ زنده</h1>
+
+                <div class="ms-auto flex items-center gap-4 md:gap-5">
+                    <div class="flex items-center gap-2">
+                        <span id="conn-dot" class="block w-2 h-2 rounded-full bg-inkmute"></span>
+                        <span id="conn-label" class="text-xs text-inkdim hidden sm:inline">در حال بررسی اتصال…</span>
+                    </div>
+                    <div class="h-4 w-px bg-line hidden sm:block"></div>
+                    <div class="flex items-center gap-2">
+                        <span id="pipeline-dot" class="block w-2 h-2 rounded-full bg-inkmute"></span>
+                        <span id="pipeline-label" class="text-xs text-inkdim hidden sm:inline">پایپلاین: نامشخص</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Tab content -->
+            <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
+
+                <!-- ===================== LIVE MONITOR ===================== -->
+                <section id="tab-monitor" class="space-y-5 fade-in">
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                        <!-- Video card -->
+                        <div class="lg:col-span-2 bg-surface border border-line rounded-lg shadow-panel overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3 border-b border-line">
+                                <div class="flex items-center gap-2">
+                                    <h2 class="text-sm font-semibold text-ink">پخش زنده دوربین</h2>
+                                    <span id="live-badge" class="hidden items-center gap-1.5 text-[11px] font-mono text-danger bg-danger/10 px-2 py-0.5 rounded-full">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-danger pulse-dot"></span>
+                                        LIVE
+                                    </span>
+                                </div>
+                                <span class="text-[11px] text-inkmute">بروزرسانی خودکار</span>
+                            </div>
+                            <div class="relative bg-base aspect-video flex items-center justify-center bg-scanlines">
+                                <img id="video-feed" alt="پخش زنده دوربین" class="hidden absolute inset-0 w-full h-full object-contain" />
+                                <div id="video-placeholder" class="flex flex-col items-center gap-2 text-inkmute px-6 text-center">
+                                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="1.6"/></svg>
+                                    <p id="video-placeholder-text" class="text-xs leading-6">دوربین غیرفعال است. برای شروع پخش زنده، پایپلاین را اجرا کنید.</p>
+                                </div>
+                            </div>
+                            <div class="px-4 py-2.5 border-t border-line flex items-center justify-between text-[11px] text-inkmute font-mono" dir="ltr">
+                                <span id="video-source-label">source: —</span>
+                                <span id="monitor-updated-at">—</span>
+                            </div>
+                        </div>
+
+                        <!-- Control card -->
+                        <div class="bg-surface border border-line rounded-lg shadow-panel p-4 flex flex-col gap-4">
+                            <h2 class="text-sm font-semibold text-ink">وضعیت پایپلاین</h2>
+
+                            <div class="rounded-md border border-line bg-surface2 px-4 py-4 flex flex-col items-center gap-2">
+                                <span id="status-pill" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-inkmute/15 text-inkdim">
+                                    <span id="status-pill-dot" class="w-1.5 h-1.5 rounded-full bg-inkmute"></span>
+                                    <span id="status-pill-label">نامشخص</span>
+                                </span>
+                                <p class="text-[11px] text-inkmute">آخرین بروزرسانی وضعیت</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <button id="btn-start" class="flex items-center justify-center gap-2 bg-emerald hover:bg-emerald/85 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md py-2.5 transition-colors">
+                                    <svg id="btn-start-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                                    <span>شروع</span>
+                                </button>
+                                <button id="btn-stop" class="flex items-center justify-center gap-2 border border-danger/50 text-danger hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-md py-2.5 transition-colors">
+                                    <svg id="btn-stop-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
+                                    <span>توقف</span>
+                                </button>
+                            </div>
+
+                            <p id="control-error" class="hidden text-[12px] text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2"></p>
+                        </div>
+                    </div>
+
+                    <!-- Manual session entry -->
+                    <div class="bg-surface border border-line rounded-lg shadow-panel p-4 md:p-5">
+                        <h2 class="text-sm font-semibold text-ink mb-3">ثبت ورود دستی خودرو</h2>
+                        <form id="session-form" class="space-y-4">
+                            <div>
+                                <label class="block text-xs text-inkdim mb-1.5">شماره پلاک</label>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <div class="plate-input-group inline-flex items-stretch overflow-hidden" dir="ltr">
+                                        <span class="plate-chip__strip"><span class="plate-chip__flag"></span><span class="plate-chip__ir">IRAN</span></span>
+                                        <input id="ses-plate-p1" type="text" inputmode="numeric" maxlength="2" placeholder="12" class="plate-input-field w-10" />
+                                        <span class="plate-input-sep">—</span>
+                                        <select id="ses-plate-letter" class="plate-input-field plate-input-select"></select>
+                                        <span class="plate-input-sep">—</span>
+                                        <input id="ses-plate-p3" type="text" inputmode="numeric" maxlength="5" placeholder="12345" class="plate-input-field w-20" />
+                                    </div>
+                                    <div class="flex items-center gap-2 text-[11px] text-inkmute">
+                                        <span>پیش‌نمایش:</span>
+                                        <span id="ses-plate-preview"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                                <div class="flex-1">
+                                    <label for="ses-owner" class="block text-xs text-inkdim mb-1.5">نام مالک <span class="text-inkmute">(اختیاری)</span></label>
+                                    <input id="ses-owner" type="text" placeholder="ناشناس" class="w-full bg-surface2 border border-line focus:border-emerald rounded-md px-3 py-2.5 text-sm outline-none placeholder:text-inkmute" />
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <p id="session-form-error" class="hidden text-[12px] text-danger"></p>
+                                <button type="submit" id="btn-add-session" class="ms-auto flex items-center justify-center gap-2 bg-emerald hover:bg-emerald/85 disabled:opacity-40 text-white text-sm font-medium rounded-md px-5 py-2.5 transition-colors whitespace-nowrap">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    <span>ثبت ورود</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Active sessions -->
+                    <div class="bg-surface border border-line rounded-lg shadow-panel overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-line">
+                            <div>
+                                <h2 class="text-sm font-semibold text-ink">خودروهای حاضر در پارکینگ</h2>
+                                <p class="text-[11px] text-inkmute mt-0.5">هر ۳ ثانیه به‌روزرسانی می‌شود</p>
+                            </div>
+                            <button id="refresh-sessions" class="text-inkmute hover:text-ink p-1.5 rounded-md hover:bg-surface2" aria-label="بازخوانی">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-surface2 text-inkdim text-[12px]">
+                                    <tr>
+                                        <th class="text-start font-medium px-4 py-2.5 w-12">ردیف</th>
+                                        <th class="text-start font-medium px-4 py-2.5">پلاک</th>
+                                        <th class="text-start font-medium px-4 py-2.5">ورود</th>
+                                        <th class="text-start font-medium px-4 py-2.5">مالک</th>
+                                        <th class="text-start font-medium px-4 py-2.5">مدت حضور</th>
+                                        <th class="text-start font-medium px-4 py-2.5 w-28">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sessions-tbody" class="divide-y divide-line"></tbody>
+                            </table>
+                        </div>
+                        <div id="sessions-pagination" class="hidden items-center justify-between gap-3 px-4 py-3 border-t border-line text-xs text-inkdim">
+                            <span id="sessions-range-label">—</span>
+                            <div class="flex items-center gap-2">
+                                <button id="sessions-prev" type="button" class="px-3 py-1.5 rounded-md border border-line hover:bg-surface2 hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors">قبلی</button>
+                                <button id="sessions-next" type="button" class="px-3 py-1.5 rounded-md border border-line hover:bg-surface2 hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors">بعدی</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===================== WHITELIST ===================== -->
+                <section id="tab-whitelist" class="space-y-5 hidden">
+
+                    <div class="bg-surface border border-line rounded-lg shadow-panel p-4 md:p-5">
+                        <h2 class="text-sm font-semibold text-ink mb-3">افزودن پلاک به لیست سفید</h2>
+                        <form id="whitelist-form" class="space-y-4">
+                            <div>
+                                <label class="block text-xs text-inkdim mb-1.5">شماره پلاک</label>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <div class="plate-input-group inline-flex items-stretch overflow-hidden" dir="ltr">
+                                        <span class="plate-chip__strip"><span class="plate-chip__flag"></span><span class="plate-chip__ir">IRAN</span></span>
+                                        <input id="wl-plate-p1" type="text" inputmode="numeric" maxlength="2" placeholder="12" class="plate-input-field w-10" />
+                                        <span class="plate-input-sep">—</span>
+                                        <select id="wl-plate-letter" class="plate-input-field plate-input-select"></select>
+                                        <span class="plate-input-sep">—</span>
+                                        <input id="wl-plate-p3" type="text" inputmode="numeric" maxlength="5" placeholder="12345" class="plate-input-field w-20" />
+                                    </div>
+                                    <div class="flex items-center gap-2 text-[11px] text-inkmute">
+                                        <span>پیش‌نمایش:</span>
+                                        <span id="wl-plate-preview"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                                <div class="flex-1">
+                                    <label for="input-owner" class="block text-xs text-inkdim mb-1.5">نام مالک <span class="text-inkmute">(اختیاری)</span></label>
+                                    <input id="input-owner" type="text" placeholder="ناشناس" class="w-full bg-surface2 border border-line focus:border-emerald rounded-md px-3 py-2.5 text-sm outline-none placeholder:text-inkmute" />
+                                </div>
+                                <div>
+                                    <button type="submit" id="btn-add-whitelist" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald hover:bg-emerald/85 disabled:opacity-40 text-white text-sm font-medium rounded-md px-5 py-2.5 transition-colors whitespace-nowrap">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        <span>افزودن</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <p id="whitelist-form-error" class="hidden text-[12px] text-danger mt-3"></p>
+                    </div>
+
+                    <div class="bg-surface border border-line rounded-lg shadow-panel overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-line">
+                            <h2 class="text-sm font-semibold text-ink">پلاک‌های مجاز</h2>
+                            <button id="refresh-whitelist" class="text-inkmute hover:text-ink p-1.5 rounded-md hover:bg-surface2" aria-label="بازخوانی">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-surface2 text-inkdim text-[12px]">
+                                    <tr>
+                                        <th class="text-start font-medium px-4 py-2.5 w-12">#</th>
+                                        <th class="text-start font-medium px-4 py-2.5">پلاک</th>
+                                        <th class="text-start font-medium px-4 py-2.5">نام مالک</th>
+                                        <th class="text-start font-medium px-4 py-2.5 w-20">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="whitelist-tbody" class="divide-y divide-line"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===================== LOGS ===================== -->
+                <section id="tab-logs" class="space-y-5 hidden">
+                    <div class="bg-surface border border-line rounded-lg shadow-panel overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-line">
+                            <h2 class="text-sm font-semibold text-ink">گزارش تردد</h2>
+                            <div class="flex items-center gap-2">
+                                <div class="flex bg-surface2 border border-line rounded-md p-0.5 text-xs">
+                                    <button data-mode="today" class="logs-mode-btn px-3 py-1.5 rounded-[5px] font-medium transition-colors">امروز</button>
+                                    <button data-mode="all" class="logs-mode-btn px-3 py-1.5 rounded-[5px] font-medium transition-colors">تاریخچه کامل</button>
+                                </div>
+                                <button id="refresh-logs" class="text-inkmute hover:text-ink p-1.5 rounded-md hover:bg-surface2" aria-label="بازخوانی">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead id="logs-thead" class="bg-surface2 text-inkdim text-[12px]"></thead>
+                                <tbody id="logs-tbody" class="divide-y divide-line"></tbody>
+                            </table>
+                        </div>
+                        <div id="logs-pagination" class="hidden items-center justify-between gap-3 px-4 py-3 border-t border-line text-xs text-inkdim">
+                            <span id="logs-range-label">—</span>
+                            <div class="flex items-center gap-2">
+                                <button id="logs-prev" type="button" class="px-3 py-1.5 rounded-md border border-line hover:bg-surface2 hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors">قبلی</button>
+                                <button id="logs-next" type="button" class="px-3 py-1.5 rounded-md border border-line hover:bg-surface2 hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors">بعدی</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-root" class="fixed bottom-6 left-6 z-50 flex flex-col gap-2 w-[calc(100%-3rem)] max-w-sm"></div>
+
+    <!-- Confirm modal -->
+    <div id="confirm-overlay" class="fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4">
+        <div class="bg-surface border border-line rounded-lg shadow-panel w-full max-w-sm p-5">
+            <h3 class="text-sm font-semibold text-ink mb-2">تایید عملیات</h3>
+            <p id="confirm-message" class="text-sm text-inkdim mb-5 leading-6"></p>
+            <div class="flex justify-end gap-2.5">
+                <button id="confirm-cancel" class="px-4 py-2 text-sm rounded-md border border-line text-inkdim hover:text-ink hover:bg-surface2">انصراف</button>
+                <button id="confirm-ok" class="px-4 py-2 text-sm rounded-md bg-danger hover:bg-danger/85 text-white">حذف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Close-session modal -->
+    <div id="close-session-overlay" class="fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4">
+        <div class="bg-surface border border-line rounded-lg shadow-panel w-full max-w-md p-5">
+            <div class="flex items-center gap-2.5 mb-4">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald/15 text-emerald shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </span>
+                <h3 class="text-sm font-semibold text-ink">بستن سشن فعال</h3>
+            </div>
+
+            <div class="bg-surface2 border border-line rounded-md p-3 mb-4 space-y-2 text-[12.5px]">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-inkmute">پلاک</span>
+                    <span id="cs-plate-display" class="font-mono text-ink"></span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-inkmute">مالک</span>
+                    <span id="cs-owner-display" class="text-inkdim"></span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-inkmute">زمان ورود</span>
+                    <span id="cs-entry-display" class="font-mono text-inkdim"></span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-inkmute">مدت حضور</span>
+                    <span id="cs-duration-display" class="font-mono text-emerald"></span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs text-inkdim mb-1.5">زمان خروج <span class="text-inkmute">(اختیاری — پیش‌فرض: همین لحظه)</span></label>
+                <input id="cs-exit-time" type="datetime-local" class="w-full bg-surface2 border border-line focus:border-emerald rounded-md px-3 py-2.5 text-sm outline-none text-inkdim" />
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs text-inkdim mb-1.5">تصویر خروج <span class="text-inkmute">(مسیر فایل — اختیاری)</span></label>
+                <input id="cs-exit-image" type="text" placeholder="/captures/exit_xxxx.jpg" class="w-full bg-surface2 border border-line focus:border-emerald rounded-md px-3 py-2.5 text-sm outline-none placeholder:text-inkmute" />
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-xs text-inkdim mb-1.5">توضیحات <span class="text-inkmute">(اختیاری)</span></label>
+                <input id="cs-details" type="text" placeholder="مثلاً: خروج دستی توسط اپراتور" class="w-full bg-surface2 border border-line focus:border-emerald rounded-md px-3 py-2.5 text-sm outline-none placeholder:text-inkmute" />
+            </div>
+
+            <p id="cs-error" class="hidden text-[12px] text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2 mb-3"></p>
+
+            <div class="flex justify-end gap-2.5">
+                <button id="cs-cancel" class="px-4 py-2 text-sm rounded-md border border-line text-inkdim hover:text-ink hover:bg-surface2">انصراف</button>
+                <button id="cs-confirm" class="flex items-center gap-2 px-4 py-2 text-sm rounded-md bg-emerald hover:bg-emerald/85 disabled:opacity-40 text-white font-medium transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.35 0 2.63.3 3.77.84"/></svg>
+                    ثبت خروج
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            "use strict";
+
+            const API_BASE = "http://127.0.0.1:8000";
+
+            const ICON_TRASH =
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+
+            const ICON_CLOSE_SESSION =
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.35 0 2.63.3 3.77.84"/></svg>';
+
+            /* ---------- generic helpers ---------- */
+
+            function $(sel, root) { return (root || document).querySelector(sel); }
+
+            function $all(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+
+            function escapeHtml(str) {
+                return String(str)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+
+            /* Raw plates arrive as space-separated tokens (digits / letter-names / category
+               codes), e.g. "1 2 Saad 2 3 4 5 6" or "PT 3 4 5 3". This maps each token to its
+               Persian representation, keeping consecutive digits joined and inserting a
+               single space around letters, category words, and the "-" separator. */
+            const PLATE_TOKEN_MAP = {
+                Alef: "الف",
+                B: "ب",
+                P: "پ",
+                T: "ت",
+                S: "ث",
+                Jim: "ج",
+                Ch: "چ",
+                H: "ح",
+                Kh: "خ",
+                Daal: "د",
+                Zaal: "ذ",
+                R: "ر",
+                Z: "ز",
+                ZH: "ژ",
+                Sin: "س",
+                Shin: "ش",
+                Saad: "ص",
+                Zaad: "ض",
+                Taa: "ط",
+                Zaa: "ظ",
+                Ein: "ع",
+                Ghein: "غ",
+                F: "ف",
+                Ghaaf: "ق",
+                Kaaf: "ک",
+                Gaaf: "گ",
+                Laam: "ل",
+                Mim: "م",
+                Noon: "ن",
+                V: "و",
+                He: "ه",
+                Y: "ی",
+                SS: "S",
+                DP: "D",
+                PT: "تشریفات",
+                ML: "ویلچر",
+                "0": "۰",
+                "1": "۱",
+                "2": "۲",
+                "3": "۳",
+                "4": "۴",
+                "5": "۵",
+                "6": "۶",
+                "7": "۷",
+                "8": "۸",
+                "9": "۹",
+                "-": "—",
+            };
+
+            function mapPlateTokens(raw) {
+                if (raw === null || raw === undefined) return "";
+                const str = String(raw).trim();
+                if (!str) return "";
+                const tokens = str.split(/\s+/).filter(Boolean);
+                let out = "";
+                let prevIsDigits = false;
+                tokens.forEach(function(tok, i) {
+                    const isDigits = /^[0-9]+$/.test(tok);
+                    let mapped;
+                    if (isDigits) {
+                        mapped = tok.split("").map(function(ch) { return PLATE_TOKEN_MAP[ch] || ch; }).join("");
+                    } else if (Object.prototype.hasOwnProperty.call(PLATE_TOKEN_MAP, tok)) {
+                        mapped = PLATE_TOKEN_MAP[tok];
+                    } else {
+                        mapped = tok; // unrecognized token — leave untouched rather than guessing
+                    }
+                    if (i === 0) {
+                        out = mapped;
+                    } else if (isDigits && prevIsDigits) {
+                        out += mapped;
+                    } else {
+                        out += " " + mapped;
+                    }
+                    prevIsDigits = isDigits;
+                });
+                return out;
+            }
+
+            function plateChip(plate) {
+                const safe = escapeHtml(mapPlateTokens(plate) || "—");
+                return (
+                    '<span class="plate-chip" dir="ltr">' +
+                    '<span class="plate-chip__strip"><span class="plate-chip__flag"></span><span class="plate-chip__ir">IRAN</span></span>' +
+                    '<span class="plate-chip__text">' + safe + "</span>" +
+                    "</span>"
+                );
+            }
+
+            /* ---------- segmented plate input (used by whitelist + manual session forms) ---------- */
+
+            const PLATE_CATEGORY_KEYS = ["SS", "DP", "PT", "ML"];
+
+            function restrictDigits(el, maxLen) {
+                el.addEventListener("input", function() {
+                    el.value = el.value.replace(/[^0-9]/g, "").slice(0, maxLen);
+                });
+            }
+
+            function populateLetterSelect(selectEl) {
+                const letterKeys = Object.keys(PLATE_TOKEN_MAP).filter(function(k) {
+                    return !/^[0-9]$/.test(k) && k !== "-" && PLATE_CATEGORY_KEYS.indexOf(k) === -1;
+                });
+                const letters = letterKeys.map(function(k) {
+                    return "<option value='" + k + "'>" + PLATE_TOKEN_MAP[k] + "</option>";
+                }).join("");
+                const categories = PLATE_CATEGORY_KEYS.map(function(k) {
+                    return "<option value='" + k + "'>" + PLATE_TOKEN_MAP[k] + " (" + k + ")</option>";
+                }).join("");
+                selectEl.innerHTML =
+                    "<option value='' disabled selected>حرف</option>" +
+                    "<optgroup label='حروف پلاک'>" + letters + "</optgroup>" +
+                    "<optgroup label='پلاک‌های خدماتی'>" + categories + "</optgroup>";
+            }
+
+            function readPlateGroup(p1Id, letterId, p3Id) {
+                const p1 = $(p1Id).value.trim();
+                const letter = $(letterId).value;
+                const p3 = $(p3Id).value.trim();
+                if (!/^\d{2}$/.test(p1) || !letter || !/^\d{5}$/.test(p3)) return null;
+                return p1.split("").concat([letter], p3.split("")).join(" ");
+            }
+
+            function clearPlateGroup(p1Id, letterId, p3Id) {
+                $(p1Id).value = "";
+                $(letterId).value = "";
+                $(p3Id).value = "";
+            }
+
+            function initPlateGroup(p1Id, letterId, p3Id, previewId) {
+                const p1El = $(p1Id),
+                    p3El = $(p3Id),
+                    letterEl = $(letterId);
+                restrictDigits(p1El, 2);
+                restrictDigits(p3El, 5);
+                populateLetterSelect(letterEl);
+
+                function refresh() {
+                    $(previewId).innerHTML = plateChip(readPlateGroup(p1Id, letterId, p3Id));
+                }
+                p1El.addEventListener("input", refresh);
+                p3El.addEventListener("input", refresh);
+                letterEl.addEventListener("change", refresh);
+                refresh();
+            }
+
+            function formatDateTime(value) {
+                if (value === null || value === undefined || value === "") return "—";
+                let d = null;
+                if (typeof value === "number") {
+                    d = new Date(value > 1e12 ? value : value * 1000);
+                } else {
+                    const num = Number(value);
+                    if (!isNaN(num) && /^\d+$/.test(String(value).trim())) {
+                        d = new Date(num > 1e12 ? num : num * 1000);
+                    } else {
+                        d = new Date(value);
+                    }
+                }
+                if (!d || isNaN(d.getTime())) return escapeHtml(String(value));
+                try {
+                    return d.toLocaleString("fa-IR", { dateStyle: "short", timeStyle: "medium" });
+                } catch (e) {
+                    return escapeHtml(String(value));
+                }
+            }
+
+            function formatDuration(ms) {
+                if (!isFinite(ms) || ms < 0) return "—";
+                const totalMin = Math.floor(ms / 60000);
+                const h = Math.floor(totalMin / 60);
+                const m = totalMin % 60;
+                if (h > 0) return h + " ساعت و " + m + " دقیقه";
+                return m + " دقیقه";
+            }
+
+            function looksLikeTimeKey(key) {
+                return /time|date|created|timestamp|at$/i.test(key);
+            }
+
+            /* ---------- toast ---------- */
+
+            function showToast(message, type) {
+                type = type || "info";
+                const palette = {
+                    success: "border-emerald/40 text-emerald bg-emerald/10",
+                    error: "border-danger/40 text-danger bg-danger/10",
+                    info: "border-line text-ink bg-surface2",
+                };
+                const el = document.createElement("div");
+                el.className =
+                    "fade-in border rounded-md px-4 py-3 text-sm shadow-panel " + (palette[type] || palette.info);
+                el.style.background = "#12171C";
+                el.textContent = message;
+                $("#toast-root").appendChild(el);
+                setTimeout(function() {
+                    el.style.transition = "opacity .3s, transform .3s";
+                    el.style.opacity = "0";
+                    el.style.transform = "translateY(6px)";
+                    setTimeout(function() { el.remove(); }, 300);
+                }, 4000);
+            }
+
+            /* ---------- confirm modal ---------- */
+
+            let confirmCallback = null;
+
+            function openConfirm(message, onConfirm) {
+                $("#confirm-message").textContent = message;
+                confirmCallback = onConfirm;
+                $("#confirm-overlay").classList.remove("hidden");
+                $("#confirm-overlay").classList.add("flex");
+            }
+
+            function closeConfirm() {
+                $("#confirm-overlay").classList.add("hidden");
+                $("#confirm-overlay").classList.remove("flex");
+                confirmCallback = null;
+            }
+            $("#confirm-cancel").addEventListener("click", closeConfirm);
+            $("#confirm-ok").addEventListener("click", function() {
+                const cb = confirmCallback;
+                closeConfirm();
+                if (cb) cb();
+            });
+
+            /* ---------- connectivity ---------- */
+
+            function setConnection(isOnline) {
+                const dot = $("#conn-dot");
+                const label = $("#conn-label");
+                if (isOnline) {
+                    dot.className = "block w-2 h-2 rounded-full bg-emerald pulse-dot";
+                    label.textContent = "متصل به سرور";
+                    label.classList.remove("text-danger");
+                } else {
+                    dot.className = "block w-2 h-2 rounded-full bg-danger";
+                    label.textContent = "ارتباط با سرور برقرار نیست";
+                    label.classList.add("text-danger");
+                }
+            }
+
+            async function apiFetch(path, options) {
+                options = options || {};
+                try {
+                    const res = await fetch(API_BASE + path, Object.assign({
+                        headers: { "Content-Type": "application/json" },
+                    }, options));
+                    setConnection(true);
+                    let body = null;
+                    try { body = await res.json(); } catch (e) { body = null; }
+                    if (!res.ok) {
+                        const detail = (body && body.detail) ? body.detail : "خطای ناشناخته از سرور";
+                        return { ok: false, status: res.status, data: body, error: detail };
+                    }
+                    return { ok: true, status: res.status, data: body, error: null };
+                } catch (err) {
+                    setConnection(false);
+                    return { ok: false, status: 0, data: null, error: "ارتباط با سرور برقرار نشد" };
+                }
+            }
+
+            /* ---------- tabs ---------- */
+
+            const TAB_TITLES = {
+                monitor: "مانیتورینگ زنده",
+                whitelist: "لیست سفید",
+                logs: "گزارش تردد",
+            };
+
+            let sessionsInterval = null;
+            let sessionsDurationInterval = null;
+            let currentTab = "monitor";
+
+            function switchTab(tab) {
+                currentTab = tab;
+                ["monitor", "whitelist", "logs"].forEach(function(t) {
+                    $("#tab-" + t).classList.toggle("hidden", t !== tab);
+                });
+                $all(".nav-item").forEach(function(btn) {
+                    const active = btn.dataset.tab === tab;
+                    btn.classList.toggle("text-ink", active);
+                    btn.classList.toggle("bg-surface2", active);
+                    btn.classList.toggle("border-emerald", active);
+                    btn.classList.toggle("text-inkdim", !active);
+                    btn.classList.toggle("border-transparent", !active);
+                });
+                $("#page-title").textContent = TAB_TITLES[tab];
+                closeSidebarMobile();
+
+                if (sessionsInterval) { clearInterval(sessionsInterval);
+                    sessionsInterval = null; }
+                if (sessionsDurationInterval) { clearInterval(sessionsDurationInterval);
+                    sessionsDurationInterval = null; }
+
+                if (tab === "monitor") {
+                    sessionsOffset = 0;
+                    loadSessions();
+                    sessionsInterval = setInterval(loadSessions, 3000);
+                } else if (tab === "whitelist") {
+                    loadWhitelist();
+                } else if (tab === "logs") {
+                    loadLogs();
+                }
+            }
+
+            $all(".nav-item").forEach(function(btn) {
+                btn.addEventListener("click", function() { switchTab(btn.dataset.tab); });
+            });
+
+            /* ---------- mobile sidebar ---------- */
+
+            function openSidebarMobile() {
+                $("#sidebar").classList.remove("translate-x-full");
+                $("#sidebar-backdrop").classList.remove("hidden");
+                $("#sidebar-backdrop").classList.add("block");
+            }
+
+            function closeSidebarMobile() {
+                $("#sidebar").classList.add("translate-x-full");
+                $("#sidebar-backdrop").classList.add("hidden");
+                $("#sidebar-backdrop").classList.remove("block");
+            }
+            $("#sidebar-open").addEventListener("click", openSidebarMobile);
+            $("#sidebar-close").addEventListener("click", closeSidebarMobile);
+            $("#sidebar-backdrop").addEventListener("click", closeSidebarMobile);
+
+            /* ===================== SYSTEM STATUS ===================== */
+
+            let pipelineActive = false;
+            let pipelineBusy = false;
+
+            function applyPipelineState(active, videoSource) {
+                pipelineActive = !!active;
+
+                const dot = $("#pipeline-dot");
+                const label = $("#pipeline-label");
+                const pill = $("#status-pill");
+                const pillDot = $("#status-pill-dot");
+                const liveBadge = $("#live-badge");
+                const img = $("#video-feed");
+                const placeholder = $("#video-placeholder");
+                const placeholderText = $("#video-placeholder-text");
+
+                if (pipelineActive) {
+                    dot.className = "block w-2 h-2 rounded-full bg-emerald pulse-dot";
+                    label.textContent = "پایپلاین: فعال";
+                    pill.className =
+                        "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald/15 text-emerald";
+                    pillDot.className = "w-1.5 h-1.5 rounded-full bg-emerald";
+                    $("#status-pill-label").textContent = "در حال پخش";
+                    liveBadge.classList.remove("hidden");
+                    liveBadge.classList.add("inline-flex");
+
+                    if (img.dataset.attached !== "1" || img.dataset.broken === "1") {
+                        img.src = API_BASE + "/video_feed?ts=" + Date.now();
+                        img.dataset.attached = "1";
+                    }
+                } else {
+                    dot.className = "block w-2 h-2 rounded-full bg-warning";
+                    label.textContent = "پایپلاین: غیرفعال";
+                    pill.className =
+                        "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-warning/15 text-warning";
+                    pillDot.className = "w-1.5 h-1.5 rounded-full bg-warning";
+                    $("#status-pill-label").textContent = "غیرفعال";
+                    liveBadge.classList.add("hidden");
+                    liveBadge.classList.remove("inline-flex");
+
+                    img.removeAttribute("src");
+                    img.dataset.attached = "0";
+                    img.dataset.broken = "0";
+                    img.classList.add("hidden");
+                    placeholder.classList.remove("hidden");
+                    placeholderText.textContent = "دوربین غیرفعال است. برای شروع پخش زنده، پایپلاین را اجرا کنید.";
+                }
+
+                $("#video-source-label").textContent = "source: " + (videoSource !== undefined && videoSource !== null ?
+                    videoSource : "—");
+                $("#btn-start").disabled = pipelineActive || pipelineBusy;
+                $("#btn-stop").disabled = !pipelineActive || pipelineBusy;
+            }
+
+            $("#video-feed").addEventListener("error", function() {
+                const img = $("#video-feed");
+                const placeholder = $("#video-placeholder");
+                const placeholderText = $("#video-placeholder-text");
+                img.dataset.broken = "1";
+                img.classList.add("hidden");
+                placeholder.classList.remove("hidden");
+                placeholderText.textContent = "دریافت پخش زنده با خطا مواجه شد. در حال تلاش مجدد…";
+            });
+            $("#video-feed").addEventListener("load", function() {
+                const img = $("#video-feed");
+                img.dataset.broken = "0";
+                img.classList.remove("hidden");
+                $("#video-placeholder").classList.add("hidden");
+            });
+
+            async function pollStatus() {
+                const res = await apiFetch("/system/status");
+                if (res.ok && res.data) {
+                    applyPipelineState(res.data.pipeline_active, res.data.video_source);
+                } else {
+                    $("#pipeline-dot").className = "block w-2 h-2 rounded-full bg-inkmute";
+                    $("#pipeline-label").textContent = "پایپلاین: نامشخص";
+                }
+                if (currentTab === "monitor") {
+                    $("#monitor-updated-at").textContent = "بروزرسانی: " + new Date().toLocaleTimeString("fa-IR");
+                }
+            }
+
+            function setControlError(msg) {
+                const el = $("#control-error");
+                if (!msg) { el.classList.add("hidden");
+                    el.textContent = ""; return; }
+                el.textContent = msg;
+                el.classList.remove("hidden");
+            }
+
+            async function handleStart() {
+                pipelineBusy = true;
+                $("#btn-start").disabled = true;
+                setControlError(null);
+                const res = await apiFetch("/system/start", { method: "POST" });
+                pipelineBusy = false;
+                if (res.ok) {
+                    showToast("پایپلاین با موفقیت شروع شد.", "success");
+                } else {
+                    setControlError(res.error);
+                    showToast(res.error, "error");
+                }
+                pollStatus();
+            }
+
+            async function handleStop() {
+                pipelineBusy = true;
+                $("#btn-stop").disabled = true;
+                setControlError(null);
+                const res = await apiFetch("/system/stop", { method: "POST" });
+                pipelineBusy = false;
+                if (res.ok) {
+                    showToast("پایپلاین متوقف شد.", "success");
+                } else {
+                    setControlError(res.error);
+                    showToast(res.error, "error");
+                }
+                pollStatus();
+            }
+
+            $("#btn-start").addEventListener("click", handleStart);
+            $("#btn-stop").addEventListener("click", handleStop);
+            $("#refresh-sessions").addEventListener("click", function() {
+                sessionsOffset = 0;
+                loadSessions();
+            });
+
+            /* ===================== ACTIVE SESSIONS ===================== */
+
+            const SESSION_LABELS = {
+                plate: "پلاک",
+                owner_name: "نام مالک",
+                entry_time: "زمان ورود",
+                timestamp: "زمان ورود",
+                created_at: "زمان ورود",
+                status: "وضعیت",
+            };
+            const SESSION_ORDER = ["plate", "owner_name", "entry_time", "timestamp", "created_at", "status"];
+
+            function buildColumns(rows, labelMap, order) {
+                if (!rows || !rows.length) return [];
+                const sample = rows[0];
+                const keys = Object.keys(sample);
+                const ordered = order.filter(function(k) { return keys.indexOf(k) !== -1; });
+                const rest = keys.filter(function(k) { return ordered.indexOf(k) === -1 && k !== "id"; });
+                return ordered.concat(rest).map(function(k) { return { key: k, label: labelMap[k] || k }; });
+            }
+
+            function renderEmptyRow(tbody, colspan, message) {
+                tbody.innerHTML =
+                    '<tr><td colspan="' + colspan + '" class="px-4 py-8 text-center text-inkmute text-sm">' + escapeHtml(
+                        message) + "</td></tr>";
+            }
+
+            function renderErrorRow(tbody, colspan, message) {
+                tbody.innerHTML =
+                    '<tr><td colspan="' + colspan + '" class="px-4 py-8 text-center text-danger text-sm">' + escapeHtml(
+                        message) + "</td></tr>";
+            }
+
+            const SESSIONS_PAGE_SIZE = 20;
+            let sessionsOffset = 0;
+            let sessionsLoading = false;
+
+            function updateSessionsPaginationUI(rowCount) {
+                const bar = $("#sessions-pagination");
+                // Show pagination bar whenever offset > 0 OR there's a full page (more may exist)
+                const needsBar = sessionsOffset > 0 || rowCount >= SESSIONS_PAGE_SIZE;
+                if (!needsBar) {
+                    bar.classList.add("hidden");
+                    bar.classList.remove("flex");
+                    return;
+                }
+                bar.classList.remove("hidden");
+                bar.classList.add("flex");
+                const from = rowCount ? sessionsOffset + 1 : 0;
+                const to = sessionsOffset + rowCount;
+                $("#sessions-range-label").textContent = rowCount ?
+                    ("نمایش " + from + " تا " + to) :
+                    "بدون نتیجه";
+                $("#sessions-prev").disabled = sessionsOffset <= 0;
+                $("#sessions-next").disabled = rowCount < SESSIONS_PAGE_SIZE;
+            }
+
+            function startSessionsDurationTicker() {
+                if (sessionsDurationInterval) clearInterval(sessionsDurationInterval);
+                sessionsDurationInterval = setInterval(function() {
+                    $all("[data-entry-ts]", $("#sessions-tbody")).forEach(function(td) {
+                        const ts = Number(td.dataset.entryTs);
+                        if (!ts) return;
+                        const mins = Math.floor((Date.now() - ts) / 60000);
+                        td.textContent = mins + " دقیقه";
+                    });
+                }, 60000);
+            }
+
+            async function loadSessions() {
+                if (sessionsLoading) return;
+                sessionsLoading = true;
+                const res = await apiFetch("/logs/sessions?limit=" + SESSIONS_PAGE_SIZE + "&offset=" + sessionsOffset);
+                sessionsLoading = false;
+
+                const tbody = $("#sessions-tbody");
+
+                if (!res.ok) {
+                    renderErrorRow(tbody, 6, "خطا در دریافت اطلاعات از سرور");
+                    updateSessionsPaginationUI(0);
+                    return;
+                }
+
+                const rows = res.data && res.data.data ? res.data.data : [];
+                if (!rows.length) {
+                    renderEmptyRow(tbody, 6, "در حال حاضر خودرویی در پارکینگ ثبت نشده است.");
+                    updateSessionsPaginationUI(0);
+                    return;
+                }
+
+                tbody.innerHTML = rows.map(function(row, i) {
+                    const plate = row.plate || "";
+                    const entryRaw = row.entry_time || row.timestamp || row.created_at || "";
+                    const owner = row.owner_name || row.owner || "";
+
+                    // resolve entry timestamp in ms
+                    let entryMs = 0;
+                    if (entryRaw) {
+                        const n = typeof entryRaw === "number" ? entryRaw : Number(entryRaw);
+                        if (!isNaN(n) && /^\d+$/.test(String(entryRaw).trim())) {
+                            entryMs = n > 1e12 ? n : n * 1000;
+                        } else {
+                            const d = new Date(entryRaw);
+                            if (!isNaN(d.getTime())) entryMs = d.getTime();
+                        }
+                    }
+
+                    const mins = entryMs ? Math.floor((Date.now() - entryMs) / 60000) : null;
+                    const durationText = mins !== null ? mins + " دقیقه" : "—";
+
+                    const ownerText = (!owner || owner === "Unknown" || owner === "unknown") ? "ناشناس" : escapeHtml(
+                    owner);
+
+                    // encode all row fields as a data attribute for the close-session modal
+                    const rowData = {
+                        plate: row.plate || "",
+                        owner: row.owner_name || row.owner || "",
+                        entry_time: row.entry_time || row.timestamp || row.created_at || "",
+                        entry_image_path: row.entry_image_path || row.image_path || row.img_in || "",
+                        confidence: row.confidence !== undefined ? row.confidence : "",
+                        duration_minutes: mins !== null ? mins : "",
+                        details: row.details || "",
+                    };
+
+                    return (
+                        "<tr class='hover:bg-surface2/60 transition-colors'>" +
+                        "<td class='px-4 py-2.5 text-inkmute font-mono'>" + (sessionsOffset + i + 1) + "</td>" +
+                        "<td class='px-4 py-2.5'>" + plateChip(plate) + "</td>" +
+                        "<td class='px-4 py-2.5 font-mono text-[12.5px]'>" + formatDateTime(entryRaw) + "</td>" +
+                        "<td class='px-4 py-2.5 text-inkdim'>" + ownerText + "</td>" +
+                        "<td class='px-4 py-2.5 font-mono text-[12.5px] text-emerald'" +
+                        (entryMs ? " data-entry-ts='" + entryMs + "'" : "") + ">" + durationText + "</td>" +
+                        "<td class='px-4 py-2.5'>" +
+                        "<div class='flex items-center gap-1'>" +
+                        "<button data-row='" + escapeHtml(JSON.stringify(rowData)) + "' data-entry-ms='" + (entryMs ||
+                            0) + "'" +
+                        " class='close-session-btn inline-flex items-center gap-1 text-[11px] font-medium text-emerald/80 hover:text-emerald hover:bg-emerald/10 px-2 py-1.5 rounded-md transition-colors'" +
+                        " aria-label='بستن سشن'>" + ICON_CLOSE_SESSION + "<span>خروج</span></button>" +
+                        "<button data-plate='" + escapeHtml(plate) +
+                        "' class='delete-session-btn text-inkmute hover:text-danger p-1.5 rounded-md hover:bg-danger/10' aria-label='حذف'>" +
+                        ICON_TRASH + "</button>" +
+                        "</div>" +
+                        "</td>" +
+                        "</tr>"
+                    );
+                }).join("");
+
+                $all(".close-session-btn", tbody).forEach(function(btn) {
+                    btn.addEventListener("click", function() {
+                        let rowData = {};
+                        try { rowData = JSON.parse(btn.dataset.row || "{}"); } catch (e) {}
+                        openCloseSession(rowData, Number(btn.dataset.entryMs || 0));
+                    });
+                });
+
+                $all(".delete-session-btn", tbody).forEach(function(btn) {
+                    btn.addEventListener("click", function() {
+                        const plate = btn.dataset.plate;
+                        openConfirm("آیا از حذف سشن فعال پلاک «" + plate + "» مطمئن هستید؟", function() {
+                            deleteActiveSession(plate);
+                        });
+                    });
+                });
+
+                updateSessionsPaginationUI(rows.length);
+                startSessionsDurationTicker();
+            }
+
+            $("#sessions-prev").addEventListener("click", function() {
+                if (sessionsOffset <= 0) return;
+                sessionsOffset = Math.max(0, sessionsOffset - SESSIONS_PAGE_SIZE);
+                loadSessions();
+            });
+            $("#sessions-next").addEventListener("click", function() {
+                sessionsOffset += SESSIONS_PAGE_SIZE;
+                loadSessions();
+            });
+
+            async function deleteActiveSession(plate) {
+                if (!plate) { showToast("پلاک نامعتبر است.", "error"); return; }
+                const res = await apiFetch("/logs/sessions/delete/" + encodeURIComponent(plate), { method: "DELETE" });
+                if (res.ok) {
+                    showToast("سشن فعال پلاک " + plate + " حذف شد.", "success");
+                    loadSessions();
+                } else {
+                    showToast(res.error, "error");
+                }
+            }
+
+            /* ===================== CLOSE-SESSION MODAL ===================== */
+
+            let _csRowData = null;
+            let _csEntryMs = 0;
+
+            function openCloseSession(rowData, entryMs) {
+                _csRowData = rowData;
+                _csEntryMs = entryMs || 0;
+
+                // populate summary panel
+                $("#cs-plate-display").innerHTML = plateChip(rowData.plate || "");
+                const ownerLabel = (!rowData.owner || rowData.owner === "Unknown" || rowData.owner === "unknown") ?
+                    "ناشناس" : escapeHtml(rowData.owner);
+                $("#cs-owner-display").textContent = ownerLabel;
+                $("#cs-entry-display").textContent = formatDateTime(rowData.entry_time || "");
+                const mins = _csEntryMs ? Math.floor((Date.now() - _csEntryMs) / 60000) : null;
+                $("#cs-duration-display").textContent = mins !== null ? mins + " دقیقه" : "—";
+
+                // default exit time = now (local datetime-local format)
+                const now = new Date();
+                const pad = function(n) { return String(n).padStart(2, "0"); };
+                const localNow =
+                    now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()) +
+                    "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
+                $("#cs-exit-time").value = localNow;
+                $("#cs-exit-image").value = "";
+                $("#cs-details").value = "";
+                $("#cs-error").classList.add("hidden");
+                $("#cs-confirm").disabled = false;
+
+                $("#close-session-overlay").classList.remove("hidden");
+                $("#close-session-overlay").classList.add("flex");
+            }
+
+            function closeCloseSessionModal() {
+                $("#close-session-overlay").classList.add("hidden");
+                $("#close-session-overlay").classList.remove("flex");
+                _csRowData = null;
+                _csEntryMs = 0;
+            }
+
+            $("#cs-cancel").addEventListener("click", closeCloseSessionModal);
+            $("#close-session-overlay").addEventListener("click", function(e) {
+                if (e.target === $("#close-session-overlay")) closeCloseSessionModal();
+            });
+
+            $("#cs-confirm").addEventListener("click", async function() {
+                if (!_csRowData) return;
+
+                const btn = $("#cs-confirm");
+                const errEl = $("#cs-error");
+                errEl.classList.add("hidden");
+
+                // build exit time ISO string
+                const exitInputVal = $("#cs-exit-time").value;
+                let exitTimeISO = null;
+                if (exitInputVal) {
+                    const d = new Date(exitInputVal);
+                    if (!isNaN(d.getTime())) {
+                        exitTimeISO = d.toISOString();
+                    }
+                }
+                if (!exitTimeISO) {
+                    exitTimeISO = new Date().toISOString();
+                }
+
+                // recalculate final duration in minutes (exit - entry)
+                let finalDurationMins = _csRowData.duration_minutes !== "" ? Number(_csRowData.duration_minutes) : null;
+                if (_csEntryMs) {
+                    const exitMs = new Date(exitTimeISO).getTime();
+                    finalDurationMins = Math.max(0, Math.floor((exitMs - _csEntryMs) / 60000));
+                }
+
+                const payload = {
+                    owner: _csRowData.owner || "Unknown",
+                    plate: _csRowData.plate || "",
+                    confidence: _csRowData.confidence !== "" ? Number(_csRowData.confidence) : null,
+                    entry_time: _csRowData.entry_time || null,
+                    exit_time: exitTimeISO,
+                    entry_image_path: _csRowData.entry_image_path || null,
+                    exit_image_path: $("#cs-exit-image").value.trim() || null,
+                    duration_minutes: finalDurationMins,
+                    details: $("#cs-details").value.trim() || null,
+                };
+
+                btn.disabled = true;
+                const histRes = await apiFetch("/logs/history/add", { method: "POST", body: JSON.stringify(payload) });
+
+                if (!histRes.ok) {
+                    errEl.textContent = histRes.error || "خطا در ثبت سابقه تردد";
+                    errEl.classList.remove("hidden");
+                    btn.disabled = false;
+                    return;
+                }
+
+                // history written — now delete the active session
+                const delRes = await apiFetch("/logs/sessions/delete/" + encodeURIComponent(_csRowData.plate), { method: "DELETE" });
+                btn.disabled = false;
+
+                if (delRes.ok) {
+                    showToast("خروج پلاک " + _csRowData.plate + " با موفقیت ثبت شد.", "success");
+                    closeCloseSessionModal();
+                    loadSessions();
+                } else {
+                    // history was saved but active session delete failed — still inform the user
+                    showToast("تاریخچه ثبت شد اما سشن فعال پاک نشد: " + delRes.error, "error");
+                    closeCloseSessionModal();
+                    loadSessions();
+                }
+            });
+
+            /* ===================== WHITELIST ===================== */
+
+            let whitelistLoading = false;
+
+            async function loadWhitelist() {
+                if (whitelistLoading) return;
+                whitelistLoading = true;
+                const tbody = $("#whitelist-tbody");
+                const res = await apiFetch("/whitelist");
+                whitelistLoading = false;
+
+                if (!res.ok) {
+                    renderErrorRow(tbody, 4, "خطا در دریافت اطلاعات از سرور");
+                    return;
+                }
+
+                const rows = res.data && res.data.data ? res.data.data : [];
+                if (!rows.length) {
+                    renderEmptyRow(tbody, 4, "هنوز پلاکی به لیست سفید اضافه نشده است.");
+                    return;
+                }
+
+                tbody.innerHTML = rows.map(function(row, i) {
+                    let plate = row.plate || row["پلاک"] || "";
+                    if (!plate || plate === "entry") {
+                        plate = row.entry || row.plate_number || row.license_plate || row.license || "";
+                    }
+                    const owner = row.owner_name || row.owner || row["مالک"] || row.name || "ناشناس";
+                    return (
+                        "<tr class='hover:bg-surface2/60 transition-colors'>" +
+                        "<td class='px-4 py-2.5 text-inkmute font-mono'>" + (i + 1) + "</td>" +
+                        "<td class='px-4 py-2.5'>" + plateChip(plate) + "</td>" +
+                        "<td class='px-4 py-2.5 text-inkdim'>" + escapeHtml(owner) + "</td>" +
+                        "<td class='px-4 py-2.5'>" +
+                        "<button data-plate='" + escapeHtml(plate) +
+                        "' class='delete-whitelist-btn text-inkmute hover:text-danger p-1.5 rounded-md hover:bg-danger/10' aria-label='حذف'>" +
+                        ICON_TRASH + "</button>" +
+                        "</td></tr>"
+                    );
+                }).join("");
+
+                $all(".delete-whitelist-btn", tbody).forEach(function(btn) {
+                    btn.addEventListener("click", function() {
+                        const plate = btn.dataset.plate;
+                        if (!plate || plate === "entry") {
+                            showToast("پلاک نامعتبر است، نمی‌توان آن را حذف کرد.", "error");
+                            return;
+                        }
+                        openConfirm("آیا از حذف پلاک «" + plate + "» از لیست سفید مطمئن هستید؟", function() {
+                            deleteWhitelist(plate);
+                        });
+                    });
+                });
+            }
+
+            async function deleteWhitelist(plate) {
+                if (!plate || plate === "entry") {
+                    showToast("پلاک نامعتبر است.", "error");
+                    return;
+                }
+                const res = await apiFetch("/whitelist/remove/" + encodeURIComponent(plate), { method: "DELETE" });
+                if (res.ok) {
+                    showToast("پلاک " + plate + " از لیست حذف شد.", "success");
+                    loadWhitelist();
+                } else {
+                    showToast(res.error, "error");
+                }
+            }
+
+            $("#whitelist-form").addEventListener("submit", async function(e) {
+                e.preventDefault();
+                const ownerInput = $("#input-owner");
+                const errEl = $("#whitelist-form-error");
+                const btn = $("#btn-add-whitelist");
+
+                errEl.classList.add("hidden");
+                const plate = readPlateGroup("#wl-plate-p1", "#wl-plate-letter", "#wl-plate-p3");
+                if (!plate) {
+                    errEl.textContent = "لطفاً هر سه بخش پلاک را کامل کنید (۲ رقم، یک حرف، ۵ رقم).";
+                    errEl.classList.remove("hidden");
+                    return;
+                }
+
+                btn.disabled = true;
+                const res = await apiFetch("/whitelist/add", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        plate: plate,
+                        owner_name: ownerInput.value.trim() || undefined,
+                    }),
+                });
+                btn.disabled = false;
+
+                if (res.ok) {
+                    showToast((res.data && res.data.message) || "پلاک با موفقیت اضافه شد.", "success");
+                    clearPlateGroup("#wl-plate-p1", "#wl-plate-letter", "#wl-plate-p3");
+                    $("#wl-plate-preview").innerHTML = plateChip(null);
+                    ownerInput.value = "";
+                    loadWhitelist();
+                } else {
+                    errEl.textContent = res.error;
+                    errEl.classList.remove("hidden");
+                }
+            });
+
+            /* ---------- manual active-session entry ----------
+               Assumes a POST /logs/sessions/add endpoint wrapping
+               GateDatabase().insert_active_session(plate, entry_time, image_path, confidence, owner),
+               with entry_time set server-side to "now". Adjust the path/body below if your
+               actual route differs. */
+
+            $("#session-form").addEventListener("submit", async function(e) {
+                e.preventDefault();
+                const errEl = $("#session-form-error");
+                const btn = $("#btn-add-session");
+                errEl.classList.add("hidden");
+
+                const plate = readPlateGroup("#ses-plate-p1", "#ses-plate-letter", "#ses-plate-p3");
+                if (!plate) {
+                    errEl.textContent = "لطفاً هر سه بخش پلاک را کامل کنید (۲ رقم، یک حرف، ۵ رقم).";
+                    errEl.classList.remove("hidden");
+                    return;
+                }
+
+                const owner = $("#ses-owner").value.trim();
+
+                const payload = { plate: plate };
+                if (owner) payload.owner = owner;
+
+                btn.disabled = true;
+                const res = await apiFetch("/logs/sessions/add", { method: "POST", body: JSON.stringify(payload) });
+                btn.disabled = false;
+
+                if (res.ok) {
+                    showToast((res.data && res.data.message) || "ورود خودرو با موفقیت ثبت شد.", "success");
+                    clearPlateGroup("#ses-plate-p1", "#ses-plate-letter", "#ses-plate-p3");
+                    $("#ses-plate-preview").innerHTML = plateChip(null);
+                    $("#ses-owner").value = "";
+                    loadSessions();
+                } else {
+                    errEl.textContent = res.error;
+                    errEl.classList.remove("hidden");
+                }
+            });
+
+            $("#refresh-whitelist").addEventListener("click", loadWhitelist);
+
+            /* ===================== LOGS ===================== */
+            /* GateDatabase returns log rows as positional tuples, not named dicts —
+               so columns are addressed by index in this fixed, confirmed order. */
+
+            const LOG_COLUMNS = [
+                { idx: 0, key: "row", label: "ردیف" },
+                { idx: 1, key: "plate", label: "پلاک" },
+                { idx: 2, key: "entry", label: "ورود" },
+                { idx: 3, key: "exit", label: "خروج" },
+                { idx: 4, key: "duration", label: "توقف" },
+                { idx: 5, key: "img_in", label: "تصویر ورود" },
+                { idx: 6, key: "img_out", label: "تصویر خروج" },
+                { idx: 7, key: "confidence", label: "اطمینان" },
+                { idx: 8, key: "owner", label: "مالک" },
+                { idx: 9, key: "details", label: "جزئیات" },
+            ];
+
+            window.__evidenceImgFallback = function(imgEl) {
+                const span = document.createElement("span");
+                span.className = "text-inkmute text-xs";
+                span.textContent = "تصویر در دسترس نیست";
+                const anchor = imgEl && imgEl.parentNode;
+                if (anchor && anchor.parentNode) anchor.parentNode.replaceChild(span, anchor);
+            };
+
+            function evidenceImageCell(value) {
+                if (value === null || value === undefined || value === "") return "<span class='text-inkmute'>—</span>";
+                let url = String(value);
+                if (!/^https?:\/\//i.test(url)) {
+                    url = API_BASE + (url.charAt(0) === "/" ? "" : "/") + url;
+                }
+                const safeUrl = escapeHtml(url);
+                return (
+                    "<a href='" + safeUrl + "' target='_blank' rel='noopener' class='inline-block'>" +
+                    "<img src='" + safeUrl + "' alt='تصویر' loading='lazy' " +
+                    "class='w-28 h-14 object-contain rounded border border-line hover:border-emerald/50 transition-colors bg-base' " +
+                    "onerror='window.__evidenceImgFallback(this)' />" +
+                    "</a>"
+                );
+            }
+
+            function confidenceCell(value) {
+                if (value === null || value === undefined || value === "") return "<span class='text-inkmute'>—</span>";
+                const num = Number(value);
+                if (isNaN(num)) return "<span class='text-inkdim'>" + escapeHtml(value) + "</span>";
+                let pct = num <= 1 ? num * 100 : num;
+                pct = Math.round(pct * 10) / 10;
+                const color = pct >= 85 ? "text-emerald" : pct >= 60 ? "text-warning" : "text-danger";
+                return "<span class='font-mono text-[12.5px] " + color + "'>" + pct + "%</span>";
+            }
+
+            function renderLogCell(row, col, rowNumberFallback) {
+                const val = row ? row[col.idx] : undefined;
+                const empty = val === null || val === undefined || val === "";
+                switch (col.key) {
+                    case "row":
+                        return "<td class='px-4 py-2.5 text-inkmute font-mono'>" + (empty ? rowNumberFallback : escapeHtml(
+                            val)) + "</td>";
+                    case "plate":
+                        return "<td class='px-4 py-2.5'>" + plateChip(val) + "</td>";
+                    case "entry":
+                    case "exit":
+                        return "<td class='px-4 py-2.5 font-mono text-[12.5px]'>" + formatDateTime(val) + "</td>";
+                    case "img_in":
+                    case "img_out":
+                        return "<td class='px-4 py-2 min-w-[8rem]'>" + evidenceImageCell(val) + "</td>";
+                    case "confidence":
+                        return "<td class='px-4 py-2.5'>" + confidenceCell(val) + "</td>";
+                    case "duration": {
+                        let display = val;
+                        if (val === "Not exist" || val === "not exist") display = "نامشخص";
+                        else if (empty) display = "—";
+                        return "<td class='px-4 py-2.5 font-mono text-[12.5px] text-inkdim'>" + escapeHtml(display) +
+                            "</td>";
+                    }
+                    case "owner": {
+                        let display = val;
+                        if (val === "Unknown" || val === "unknown") display = "ناشناس";
+                        else if (empty) display = "—";
+                        return "<td class='px-4 py-2.5 text-inkdim'>" + escapeHtml(display) + "</td>";
+                    }
+                    default: {
+                        if (col.key === "details") {
+                            if (empty) return "<td class='px-4 py-2.5 text-inkmute'>—</td>";
+                            const safeVal = escapeHtml(val);
+                            const preview = String(val).slice(0, 28) + (String(val).length > 28 ? "…" : "");
+                            return (
+                                "<td class='px-4 py-2.5'>" +
+                                "<div class='details-cell' tabindex='0'>" +
+                                "<span class='details-pill'>" +
+                                "<svg width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>" +
+                                escapeHtml(preview) +
+                                "</span>" +
+                                "<div class='details-popover' role='tooltip'>" + safeVal + "</div>" +
+                                "</div></td>"
+                            );
+                        }
+                        return "<td class='px-4 py-2.5 text-inkdim'>" + (empty ? "—" : escapeHtml(val)) + "</td>";
+                    }
+                }
+            }
+
+            const LOGS_PAGE_SIZE = 25;
+            let logsMode = "today";
+            let logsLoading = false;
+            let logsOffset = 0;
+
+            function updateLogsPaginationUI(rowCount, isPaged) {
+                const bar = $("#logs-pagination");
+                if (!isPaged) {
+                    bar.classList.add("hidden");
+                    bar.classList.remove("flex");
+                    return;
+                }
+                bar.classList.remove("hidden");
+                bar.classList.add("flex");
+                const from = rowCount ? logsOffset + 1 : 0;
+                const to = logsOffset + rowCount;
+                $("#logs-range-label").textContent = rowCount ? ("نمایش " + from + " تا " + to) : "بدون نتیجه";
+                $("#logs-prev").disabled = logsOffset <= 0;
+                $("#logs-next").disabled = rowCount < LOGS_PAGE_SIZE;
+            }
+
+            async function loadLogs() {
+                if (logsLoading) return;
+                logsLoading = true;
+                const thead = $("#logs-thead");
+                const tbody = $("#logs-tbody");
+                thead.innerHTML = "";
+                tbody.innerHTML = "<tr><td colspan='" + LOG_COLUMNS.length +
+                    "' class='px-4 py-8 text-center text-inkmute text-sm'><span class='spinner inline-block align-middle me-2'></span>در حال بارگذاری…</td></tr>";
+
+                const isPaged = logsMode === "all";
+                let path = logsMode === "today" ? "/logs/today" : "/logs";
+                if (isPaged) {
+                    path += "?limit=" + LOGS_PAGE_SIZE + "&offset=" + logsOffset;
+                }
+                const res = await apiFetch(path);
+                logsLoading = false;
+
+                if (!res.ok) {
+                    renderErrorRow(tbody, LOG_COLUMNS.length, "خطا در دریافت اطلاعات از سرور");
+                    updateLogsPaginationUI(0, isPaged);
+                    return;
+                }
+
+                const rows = res.data && res.data.data ? res.data.data : [];
+                if (!rows.length) {
+                    renderEmptyRow(tbody, LOG_COLUMNS.length, "ترددی برای نمایش ثبت نشده است.");
+                    updateLogsPaginationUI(0, isPaged);
+                    return;
+                }
+
+                thead.innerHTML =
+                    "<tr>" + LOG_COLUMNS.map(function(c) { return "<th class='text-start font-medium px-4 py-2.5'>" +
+                            escapeHtml(c.label) + "</th>"; }).join("") + "</tr>";
+
+                tbody.innerHTML = rows.map(function(row, i) {
+                    const cells = LOG_COLUMNS.map(function(c) { return renderLogCell(row, c, logsOffset + i + 1); })
+                        .join("");
+                    return "<tr class='hover:bg-surface2/60 transition-colors'>" + cells + "</tr>";
+                }).join("");
+
+                updateLogsPaginationUI(rows.length, isPaged);
+            }
+
+            $all(".logs-mode-btn").forEach(function(btn) {
+                btn.addEventListener("click", function() {
+                    logsMode = btn.dataset.mode;
+                    logsOffset = 0;
+                    updateLogsModeUI();
+                    loadLogs();
+                });
+            });
+
+            $("#logs-prev").addEventListener("click", function() {
+                if (logsOffset <= 0) return;
+                logsOffset = Math.max(0, logsOffset - LOGS_PAGE_SIZE);
+                loadLogs();
+            });
+            $("#logs-next").addEventListener("click", function() {
+                logsOffset += LOGS_PAGE_SIZE;
+                loadLogs();
+            });
+
+            function updateLogsModeUI() {
+                $all(".logs-mode-btn").forEach(function(btn) {
+                    const active = btn.dataset.mode === logsMode;
+                    btn.className = "logs-mode-btn px-3 py-1.5 rounded-[5px] font-medium transition-colors " +
+                        (active ? "bg-emerald text-white" : "text-inkdim hover:text-ink");
+                });
+            }
+
+            $("#refresh-logs").addEventListener("click", loadLogs);
+
+            /* ===================== VIDEO SOURCE ===================== */
+
+            let currentSrcType = "local";
+
+            function updateSrcTypeUI() {
+                $all(".src-type-btn").forEach(function(btn) {
+                    const active = btn.dataset.srcType === currentSrcType;
+                    btn.className = "src-type-btn flex-1 py-1 rounded-[4px] font-medium transition-colors " +
+                        (active ? "bg-emerald text-white" : "text-inkdim hover:text-ink");
+                });
+                $all(".src-input-panel").forEach(function(panel) { panel.classList.add("hidden"); });
+                const activePanel = $("#src-input-" + currentSrcType);
+                if (activePanel) activePanel.classList.remove("hidden");
+            }
+
+            function setSrcStatus(msg, type) {
+                const el = $("#src-status");
+                el.textContent = msg;
+                el.className = "text-[11px] rounded-md px-2.5 py-1.5 leading-5 " +
+                    (type === "success" ?
+                        "bg-emerald/10 text-emerald border border-emerald/20" :
+                        type === "error" ?
+                        "bg-danger/10 text-danger border border-danger/20" :
+                        "bg-inkmute/10 text-inkdim border border-line");
+                el.classList.remove("hidden");
+                if (type === "success") {
+                    setTimeout(function() { el.classList.add("hidden"); }, 3500);
+                }
+            }
+
+            function getSourceValue() {
+                if (currentSrcType === "local") {
+                    const v = $("#src-local-value").value.trim();
+                    const n = parseInt(v, 10);
+                    return isNaN(n) ? 0 : n; // API expects a number for local cameras
+                }
+                if (currentSrcType === "ip") {
+                    return $("#src-ip-value").value.trim();
+                }
+                return $("#src-file-value").value.trim();
+            }
+
+            $all(".src-type-btn").forEach(function(btn) {
+                btn.addEventListener("click", function() {
+                    currentSrcType = btn.dataset.srcType;
+                    updateSrcTypeUI();
+                    $("#src-status").classList.add("hidden");
+                });
+            });
+
+            $("#btn-apply-source").addEventListener("click", async function() {
+                const btn = $("#btn-apply-source");
+                const labelEl = $("#btn-apply-source-label");
+                const source = getSourceValue();
+
+                if (source === "" || source === null || source === undefined) {
+                    setSrcStatus("مقدار منبع را وارد کنید.", "error");
+                    return;
+                }
+
+                btn.disabled = true;
+                labelEl.textContent = "در حال اعمال…";
+
+                const res = await apiFetch("/system/source", {
+                    method: "POST",
+                    body: JSON.stringify({ source: source }),
+                });
+
+                btn.disabled = false;
+                labelEl.textContent = "اعمال منبع";
+
+                if (res.ok) {
+                    const msg = (res.data && res.data.message) || "منبع ویدیو با موفقیت تغییر کرد.";
+                    setSrcStatus(msg, "success");
+                    showToast(msg, "success");
+                    // Update the source label in the monitor bar if visible
+                    const srcLabel = $("#video-source-label");
+                    if (srcLabel) srcLabel.textContent = "source: " + String(source);
+                } else {
+                    setSrcStatus(res.error || "خطا در تغییر منبع ویدیو.", "error");
+                }
+            });
+
+            // Initialise source type UI on load
+            updateSrcTypeUI();
+
+            /* ===================== INIT ===================== */
+
+            initPlateGroup("#wl-plate-p1", "#wl-plate-letter", "#wl-plate-p3", "#wl-plate-preview");
+            initPlateGroup("#ses-plate-p1", "#ses-plate-letter", "#ses-plate-p3", "#ses-plate-preview");
+            updateLogsModeUI();
+            switchTab("monitor");
+            pollStatus();
+            setInterval(pollStatus, 4000);
+
+        })();
+    </script>
+</body>
+</html>

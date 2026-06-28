@@ -1,6 +1,6 @@
 import cv2
-from threading import Thread
 import time
+from threading import Thread
 
 class FrameReader:
     def __init__(self, source=0):
