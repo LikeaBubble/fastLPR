@@ -1,6 +1,7 @@
 # FastLPR — Edge-Optimized License Plate Recognition
 
-**A GPU-free Automatic License Plate Recognition (ALPR) system built to run in real time on mini-PCs and edge devices**, with native support for Persian/Iranian plates.
+**A GPU-free Automatic License Plate Recognition (ALPR) system built to run on mini-PCs and edge devices**, with native support for Persian/Iranian plates.    
+<img width="800" height="378" alt="ScreenRecording2026-07-10160428online-video-cutter com-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/7a1e1101-2c52-410c-82c0-9e966ee5fa07" />
 
 ---
 
